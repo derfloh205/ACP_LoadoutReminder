@@ -1,0 +1,12 @@
+## Interface: 90001
+## DefaultState: enabled
+
+## Title: BetterAddonList_LoadoutReminder
+## Notes: Reminds you to switch addon loadouts created by the BetterAddonList addon in specific situations
+## Author: genju
+## RequiredDeps: BetterAddonList
+## SavedVariables: LoadoutReminderDB
+## Version: 0.1
+
+LoadoutReminder.lua
+LoadoutReminder.xml
