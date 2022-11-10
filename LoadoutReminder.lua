@@ -1,6 +1,7 @@
+-- ACP Version
 
-if BetterAddonListDB == nil then
-	print("Could not find BetterAddonList Addon")
+if ACP_Data == nil then
+	print("Could not find AddonControlPanel Addon")
 	return
 end
 
@@ -22,8 +23,34 @@ addon.defaultDB = {
 	ADV_MODE = false
 }
 
+function addon:getACPSetNumber(searchedSet)
+	local setNumber = 1
+	for i, currentSet in pairs(ACP_Data["AddonSet"]) do
+		local setName = currentSet["name"]
+		if setName == searchedSet then
+			return setNumber
+		end
+		setNumber = setNumber + 1
+	end
+	return nil
+end
+
+function addon:getAddonSets()
+	local list = {}
+	local setNumber = 1
+	for i, currentSet in pairs(ACP_Data["AddonSet"]) do
+		local setName = currentSet["name"]
+		if setName == nil then
+			setName = "Set " .. setNumber
+		end
+		table.insert(list, setName)
+		setNumber = setNumber + 1
+	end
+	return list
+end
+
 function addon:ADDON_LOADED(addon_name)
-	if addon_name ~= 'BetterAddonList_LoadoutReminder' then
+	if addon_name ~= 'ACP_LoadoutReminder' then
 		return
 	end
 	addon:loadDefaultDB()
@@ -103,9 +130,15 @@ function addon:checkAndShow()
 		LoadoutReminderFrame.ContentFrame.text:SetText("")
 	end
 
+	local ACP_SetNumber = addon:getACPSetNumber(SET_TO_LOAD)
 	
 
-	local macroTextLoad = "/addons load " .. SET_TO_LOAD .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
+	if ACP_SetNumber == nil then 
+		print("Could not find set '"..SET_TO_LOAD.."' in list of acp sets")
+		return 
+	end
+
+	local macroTextLoad = "/acp disableall\n/acp addset " .. ACP_SetNumber .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
 	LoadSetButton:SetAttribute("macrotext", macroTextLoad)
 	LoadSetButton:SetText("Load '"..SET_TO_LOAD.."'")
 
@@ -114,13 +147,14 @@ function addon:checkAndShow()
 		LoadoutReminderFrame:SetSize(300, 170)
 		LoadSetButton:SetPoint("CENTER",LoadoutReminderFrame, "CENTER", 0, 5)
 
-		local macroTextEnable = "/addons enable " .. SET_TO_LOAD .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
+		local macroTextEnable = "/acp addset " .. ACP_SetNumber .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
 		EnableSetButton:SetAttribute("macrotext", macroText)
 		EnableSetButton:SetText("Enable '"..SET_TO_LOAD.."'")
 		EnableSetButton:Show()
 
+
 		if CURRENT_SET ~= nil then
-			local macroTextDisable = "/addons disable " .. CURRENT_SET .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
+			local macroTextDisable = "/acp removeset " .. ACP_SetNumber .. "\n/script LoadoutReminderAddon:setCurrentSet('"..SET_TO_LOAD.."')\n/reload"
 			DisableSetButton:SetAttribute("macrotext", macroText)
 			DisableSetButton:SetText("Disable '"..CURRENT_SET.."'")
 			DisableSetButton:Show()
@@ -180,7 +214,7 @@ function addon:PLAYER_LOGIN()
 		end
 
 		if command == "" then
-			print("BetterAddonList LoadoutReminder Help")
+			print("AddonControlPanel LoadoutReminder Help")
 			print("/lor or /loadoutreminder can be used for following commands")
 			print("/lor -> show help text")
 			print("/lor config -> show options panel")
@@ -231,12 +265,23 @@ function addon:initLoadoutReminderFrame()
 	bDisable:SetText("Disable Addonset")
 end
 
+function addon:updateOptionDropdowns()
+	UIDropDownMenu_Initialize(DropdownDUNGEON, initializeDropdownValues) 
+	UIDropDownMenu_Initialize(DropdownRAID, initializeDropdownValues) 
+	UIDropDownMenu_Initialize(DropdownARENA, initializeDropdownValues) 
+	UIDropDownMenu_Initialize(DropdownBG, initializeDropdownValues) 
+	UIDropDownMenu_Initialize(DropdownOPENWORLD, initializeDropdownValues) 
+end
+
 function addon:initOptions()
 	self.optionsPanel = CreateFrame("Frame")
-	self.optionsPanel.name = "BetterAddonList_LoadoutReminder"
+	self.optionsPanel:HookScript("OnShow", function(self)
+			addon:updateOptionDropdowns()
+	end)
+	self.optionsPanel.name = "ACP_LoadoutReminder"
 	local title = self.optionsPanel:CreateFontString('optionsTitle', 'OVERLAY', 'GameFontNormal')
     title:SetPoint("TOP", 0, 0)
-	title:SetText("BetterAddonList_LoadoutReminder")
+	title:SetText("Addon Control Panel LoadoutReminder")
 
 	self:initDropdownMenu("DUNGEON", "Dungeon", -115, -50)
 	self:initDropdownMenu("RAID", "Raid", 115, -50)
@@ -265,21 +310,13 @@ function addon:initOptions()
 	InterfaceOptions_AddCategory(self.optionsPanel)
 end
 
-function addon:initDropdownMenu(linkedSetID, label, offsetX, offsetY)
-	local dropDown = CreateFrame("Frame", "Dropdown" .. linkedSetID, self.optionsPanel, "UIDropDownMenuTemplate")
-	dropDown:SetPoint("TOP", self.optionsPanel, offsetX, offsetY)
-	UIDropDownMenu_SetWidth(dropDown, 200) -- Use in place of dropDown:SetWidth
-	-- Bind an initializer function to the dropdown; see previous sections for initializer function examples.
-	if LoadoutReminderDB[linkedSetID] ~= nil then
-		UIDropDownMenu_SetText(dropDown, LoadoutReminderDB[linkedSetID])
-	else
-		UIDropDownMenu_SetText(dropDown, "Choose an addon set")
-	end
-	
-	UIDropDownMenu_Initialize(dropDown, function(self, level, menulist) 
-		-- loop through possible sets created with BetterAddonList and put them as option
-		for k, v in pairs(BetterAddonListDB.sets) do
-			setName = k
+function addon:initializeDropdownValues(dropDown, linkedSetID)
+	local setList = addon:getAddonSets()
+
+	UIDropDownMenu_Initialize(dropDown, function(self) 
+		-- loop through possible sets and put them as option
+		for k, v in pairs(setList) do
+			setName = v -- in ACP V is needed
 			local info = UIDropDownMenu_CreateInfo()
 			info.func = function(self, arg1, arg2, checked) 
 				--print("clicked: " .. linkedSetID .. " -> " .. tostring(arg1))
@@ -292,7 +329,21 @@ function addon:initDropdownMenu(linkedSetID, label, offsetX, offsetY)
 			UIDropDownMenu_AddButton(info)
 		end
 	end)
+end
 
+function addon:initDropdownMenu(linkedSetID, label, offsetX, offsetY)
+	local dropDown = CreateFrame("Frame", "Dropdown" .. linkedSetID, self.optionsPanel, "UIDropDownMenuTemplate")
+	dropDown:SetPoint("TOP", self.optionsPanel, offsetX, offsetY)
+	UIDropDownMenu_SetWidth(dropDown, 200) -- Use in place of dropDown:SetWidth
+	-- Bind an initializer function to the dropdown; see previous sections for initializer function examples.
+	if LoadoutReminderDB[linkedSetID] ~= nil then
+		UIDropDownMenu_SetText(dropDown, LoadoutReminderDB[linkedSetID])
+	else
+		UIDropDownMenu_SetText(dropDown, "Choose an addon set")
+	end
+	
+	addon:initializeDropdownValues(dropDown, linkedSetID)
+		
 	local dd_title = dropDown:CreateFontString('dd_title', 'OVERLAY', 'GameFontNormal')
     dd_title:SetPoint("TOP", 0, 10)
 	dd_title:SetText(label)

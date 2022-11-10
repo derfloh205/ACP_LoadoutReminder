@@ -1,0 +1,12 @@
+## Interface: 100000
+## DefaultState: enabled
+
+## Title: Addon Control Panel_LoadoutReminder
+## Notes: Reminds you to switch addon loadouts created by the Addon Control Panel addon in specific situations
+## Author: genju
+## RequiredDeps: ACP
+## SavedVariables: LoadoutReminderDB
+## Version: 1.1
+
+LoadoutReminder.lua
+LoadoutReminder.xml
