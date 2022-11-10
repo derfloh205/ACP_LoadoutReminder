@@ -1,6 +1,6 @@
-This is an independed addition to the addon "BetterAddonList"
+This is an independed addition to the addon "Addon Control Panel"
 
-LoadoutReminder lets you choose addon loadouts created with BetterAddonList for certain instance types like dungeon / raid / pvp ...
+LoadoutReminder lets you choose addon loadouts created with Addon Control Panel for certain instance types like dungeon / raid / pvp ...
 
 
 
